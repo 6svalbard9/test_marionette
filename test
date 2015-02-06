@@ -10,14 +10,16 @@ MyApp.addRegions({
 
 //Creer l'objet angry cat (un chat)
 AngryCat = Backbone.Model.extend({
+  //par defaut 0 votes
    defaults: {
     votes: 0
   },
- 
+  
   addVote: function(){
+    //prendre l'attr votes de lobjet et lincrementer de 1
     this.set('votes', this.get('votes') + 1);
   },
- 
+
   rankUp: function() {
     this.set({rank: this.get('rank') - 1});
   },
@@ -48,7 +50,7 @@ AngryCats = Backbone.Collection.extend({
       cat.set('rank', rank);
       ++rank;
     });
-
+    //si un chat est rajoute sans un rang de base, lancer une erreur
     this.on('add', function(cat){
       if( ! cat.get('rank') ) {
         var error =  Error('Cat must have a rank defined before being added to the collection');
@@ -56,14 +58,18 @@ AngryCats = Backbone.Collection.extend({
         throw error;
       }
     });
-
+    //je pense que cest pcq cest un autre this une fois dans la fonction
     var self = this;
-
+    //ecouter devenements
     MyApp.vent.on("rank:up", function(cat){
       if (cat.get('rank') == 1) {
         // can't increase rank of top-ranked cat
         return true;
       }
+      /* comme lobj angryCats est composé d'objets angryCat
+      *  il est un peu comme un multidimensional array
+      *  donc on augmente le rang du chat et l'on replace l'array
+      */
       self.rankUp(cat);
       self.sort();
     });
@@ -76,18 +82,23 @@ AngryCats = Backbone.Collection.extend({
       self.rankDown(cat);
       self.sort();
     });    
-
+  //ici cest un ecouteur pour detruire pour toujours et à jamais un chat
   MyApp.vent.on("cat:disqualify", function(cat){
+    //prendre la position du chat detruit
     var disqualifiedRank = cat.get('rank');
+   // filter est une methode de underscore que backbone a vole
     var catsToUprank = self.filter(
+      //en gros catsToUprank = que les chats au rang plus grand que celui qui est disqualifie
       function(cat){ return cat.get('rank') > disqualifiedRank; }
     );
+    //pour chacun dentre eux monter de rang
     catsToUprank.forEach(function(cat){
       cat.rankUp();
     });
     //self.trigger('reset');
   });
   },
+  //apparament cela reagit avec le sortby, je dois faire des tests pour ca
   comparator: function(cat) {
     return cat.get('rank');
   },
@@ -95,6 +106,7 @@ AngryCats = Backbone.Collection.extend({
   rankUp: function(cat) {
     // find the cat we're going to swap ranks with
     var rankToSwap = cat.get('rank') - 1;
+    //cela agit comme .getChildAt(x) en as3
     var otherCat = this.at(rankToSwap - 1);
     
     // swap ranks
@@ -104,7 +116,6 @@ AngryCats = Backbone.Collection.extend({
   
   rankDown: function(cat) {
     // find the cat we're going to swap ranks with
-    console.log(cat);
     var rankToSwap = cat.get('rank') +1;
     var otherCat = this.at(rankToSwap - 1);
     
@@ -125,11 +136,12 @@ AngryCatView = Backbone.Marionette.ItemView.extend({
     'click .rank_down img': 'rankDown',
     'click a.disqualify': 'disqualify'
   },
-
+//ici cest à updater pour la version actuelle!!
   initialize: function(){
+    //rajouter une fonction
     this.bindTo(this.model, "change:votes", this.render, this);
   },
-
+//ici je guess que cest pour enlever lecouteur
   onClose: function(){
   this.model.unbind('change:votes', this.render);
   },
@@ -146,6 +158,7 @@ AngryCatView = Backbone.Marionette.ItemView.extend({
     MyApp.vent.trigger("rank:down", this.model);
   },
   disqualify: function(){
+    //appeler levenement disqualifier
     MyApp.vent.trigger("cat:disqualify",this.model);
     this.model.destroy();
   }
@@ -186,6 +199,8 @@ $(document).ready(function(){
     new AngryCat({ name: 'Surprised Cat', image_path: 'assets/images/cat3.jpg' })
   ]);
   //commencer l'application après avoirr pris les données
+
+  //ici cest rajouter un chat apres lapplication juste pour la passion de la pedagogie
   MyApp.start({cats: cats});
 
     cats.add(new AngryCat({
